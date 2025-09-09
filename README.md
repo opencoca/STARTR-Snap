@@ -1,7 +1,9 @@
 ![Startr Snap Logo](https://snap.startr.cloud/static/img/topbar-logo.png)
 # Startr Snap: Build Your Own Blocks with AI & Robotics
 
-## v10.4.7
+## v10.4.8
+
+# Now with more powerful AI and Robotics features!
 
 [https://snap.startr.cloud][snap]
 
