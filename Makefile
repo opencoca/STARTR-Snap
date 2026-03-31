@@ -47,7 +47,7 @@ feature:
 
 feature_finish:
 	# Ingest a feature name and save it to a variable we can access in feature_finish:
-	git flow feature finish $$(git branch --show-current)
+	git flow feature finish --no-fetch $$(git branch --show-current)
 
 
 minor_release:
@@ -68,7 +68,7 @@ hotfix:
 
 release_finish:
 	$(eval RELEASE_VERSION := $(shell git rev-parse --abbrev-ref HEAD | sed 's/release\///'))
-	git flow release finish "$(RELEASE_VERSION)"
+	git flow release finish --no-fetch "$(RELEASE_VERSION)"
 	git push origin develop
 	git push origin master
 	git push --tags
@@ -76,7 +76,7 @@ release_finish:
 
 hotfix_finish:
 	$(eval HOTFIX_VERSION := $(shell git rev-parse --abbrev-ref HEAD | sed 's/hotfix\///'))
-	git flow hotfix finish "$(HOTFIX_VERSION)"
+	git flow hotfix finish --no-fetch "$(HOTFIX_VERSION)"
 	git push origin develop
 	git push origin master
 	git push --tags
