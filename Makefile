@@ -84,3 +84,9 @@ hotfix_finish:
 
 clean_git_repo:
 	git clean --exclude=!.env -Xdf
+
+# ---------------------------------------------------------------------------
+# Interactive release (full flow via ~/bin/git-release)
+# ---------------------------------------------------------------------------
+release:
+	@scripts/release.sh
