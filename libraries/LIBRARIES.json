@@ -1,4 +1,21 @@
-[
+[ {
+  "fileName": "AI_with.Startr.Sage.Education.xml",
+  "name": "AI with Sage.Education (Startr)",
+  "description": "AI with Sage.Education (Startr) is a block-based AI programming that allows students to learn AI concepts and build AI models in a fun and engaging way.",
+  "searchData": [
+    "AI",
+    "Artificial Intelligence",
+    "Machine Learning",
+    "Deep Learning",
+    "Neural Networks",
+    "Data Science",
+    "AI with Sage.Education",
+    "Startr"
+  ],
+  "categories": [
+    "AI"
+  ]
+},
   {
     "fileName": "code2blocks_module.xml",
     "name": "Code to Blocks to Code",

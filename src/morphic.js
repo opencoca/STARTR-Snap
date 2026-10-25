@@ -1601,7 +1601,7 @@ function getMinimumFontHeight() {
         y;
     canvas.width = size;
     canvas.height = size;
-    ctx = canvas.getContext('2d');
+    ctx = canvas.getContext('2d', {desynchronized: true, willReadFrequently: true});
     ctx.font = '1px serif';
     maxX = ctx.measureText(str).width;
     ctx.fillStyle = 'black';

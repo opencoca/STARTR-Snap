@@ -2291,7 +2291,7 @@ SyntaxElementMorph.prototype.labelPart = function (spec) {
             part.fontSize = this.fontSize * (+tokens[1] || 1);
         } else {
             part = new BlockSymbolMorph(tokens[0]);
-            part.size = this.fontSize * (+tokens[1] || 1.2);
+            part.size = this.fontSize * (+tokens[1] || 1.4);
         }
         part.color = new Color(
             +tokens[2] === 0 ? 0 : +tokens[2] || 255,
@@ -3487,7 +3487,34 @@ BlockMorph.prototype.parseSpec = function (spec) {
     return result;
 };
 
+var suffixMapping = {
+    control: "",
+    motion: "",
+    // … other categories and suffixes …
+};
+
+var prefixMapping = {
+    control: "$verticalEllipsis",
+    motion: "$verticalEllipsis",
+    Music: "$notes",
+    // … other categories and prefixes …
+};
+
+
 BlockMorph.prototype.setSpec = function (spec, definition) {
+    //console.log('this', this);
+    //console.log('Is CommandBlockMorph?', this instanceof CommandBlockMorph);
+    if (this instanceof CommandBlockMorph) {
+        var suffix = suffixMapping[this.category] || '';
+        var prefix = prefixMapping[this.category] || '$verticalEllipsis';
+
+        if (prefix && spec.indexOf(prefix) === -1) {
+            spec = prefix + " " + spec;
+        }
+        if (suffix && spec.indexOf(suffix) === -1) {
+            spec = spec + " " + suffix;
+        }
+    }
     var part,
         inputIdx = -1;
 

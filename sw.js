@@ -93,6 +93,7 @@ var snapVersion = '12.3.6',
         //libraries
         'libraries/LIBRARIES.json',
 
+        'libraries/AI_with.Startr.Sage.Education.xml',
         'libraries/animation_module.xml',
         'libraries/apl.xml',
         'libraries/arcs_module.xml',
@@ -110,7 +111,6 @@ var snapVersion = '12.3.6',
             'libraries/beetle/beetle.js',
             'libraries/beetle/earcut.min.js',
             'libraries/beetle/babylonjs.loaders.min.js',
-            'libraries/beetle/babylon.js.map',
             'libraries/beetle/babylon.js',
             'libraries/beetle/babylon.gridMaterial.min.js',
 
@@ -866,7 +866,8 @@ var snapVersion = '12.3.6',
         'Examples/live-tree.xml',
         'Examples/swimmer.xml',
         'Examples/tree.xml',
-        'Examples/vee.xml'
+        'Examples/vee.xml',
+        'Examples/Sage.Education_AI_Example.xml'
     ];
 
 console.log('service worker executed', snapVersion);

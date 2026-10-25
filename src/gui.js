@@ -1071,62 +1071,7 @@ IDE_Morph.prototype.createLogo = function () {
     // otherwise would be compromised by annoying browser security.
 
     // this.logo.texture = this.logoURL; // original code, commented out
-    this.logo.texture = "data:image/png;base64," +
-        "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" +
-        "gg==";
+    this.logo.texture = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAYAAAA6/NlyAAAAwnpUWHRSYXcgcHJvZmlsZSB0eXBlIGV4aWYAAHjabVBbDgMhCPz3FD2CPFQ8jttuk96gxy8Iu1nbTsI4AhmRtL9fz3QzIHDi0qT2WrOCO3ccKiQ7xmTIPHmC7lGDNZ/OAmqKrNOvUqP/yMNp4MdQVS5GEkawrYXO4S9fRhiT2USmH2HUw4jQCxAGw7+Va5d2/cK25xXikYxY1rF/7k239yj6DiHuBJSVicQHIIuSaExh3LRRWXUhVgZqYaYL+benA+kDcmxZfhJa8ZcAAAGDaUNDUElDQyBwcm9maWxlAAB4nH2RPUjDQBzFX1OlpVQc7CDikKE62cUvHGsVilAh1AqtOphc+gVNDEmKi6PgWnDwY7Hq4OKsq4OrIAh+gLgLToouUuL/kkKLGA+O+/Hu3uPuHSA0a0yzepKApttmNp0S84UVMfQKASGEMYWIzCxjVpIy8B1f9wjw9S7Bs/zP/Tn61KLFgIBInGSGaROvE09v2gbnfeIYq8gq8TnxmEkXJH7kuuLxG+eyywLPjJm57BxxjFgsd7HSxaxiasSTxHFV0ylfyHusct7irNXqrH1P/sJoUV9e4jrNYaSxgEVIEKGgjipqsJGgVSfFQpb2Uz7+IdcvkUshVxWMHPPYgAbZ9YP/we9urdLEuJcUTQG9L47zMQKEdoFWw3G+jx2ndQIEn4ErvePfaAIzn6Q3Olr8COjfBi6uO5qyB1zuAINPhmzKrhSkKZRKwPsZfVMBGLgFIqteb+19nD4AOeoqcwMcHAKjZcpe83l3uLu3f8+0+/sBaAZyoipWbN8AAA16aVRYdFhNTDpjb20uYWRvYmUueG1wAAAAAAA8P3hwYWNrZXQgYmVnaW49Iu+7vyIgaWQ9Ilc1TTBNcENlaGlIenJlU3pOVGN6a2M5ZCI/Pgo8eDp4bXBtZXRhIHhtbG5zOng9ImFkb2JlOm5zOm1ldGEvIiB4OnhtcHRrPSJYTVAgQ29yZSA0LjQuMC1FeGl2MiI+CiA8cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPgogIDxyZGY6RGVzY3JpcHRpb24gcmRmOmFib3V0PSIiCiAgICB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIKICAgIHhtbG5zOnN0RXZ0PSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VFdmVudCMiCiAgICB4bWxuczpHSU1QPSJodHRwOi8vd3d3LmdpbXAub3JnL3htcC8iCiAgICB4bWxuczpkYz0iaHR0cDovL3B1cmwub3JnL2RjL2VsZW1lbnRzLzEuMS8iCiAgICB4bWxuczp0aWZmPSJodHRwOi8vbnMuYWRvYmUuY29tL3RpZmYvMS4wLyIKICAgIHhtbG5zOnhtcD0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wLyIKICAgeG1wTU06RG9jdW1lbnRJRD0iZ2ltcDpkb2NpZDpnaW1wOmJjMmEyODljLWNjZTYtNDEwOC1iODY1LWM5MzQ3ZTM0NjZlNSIKICAgeG1wTU06SW5zdGFuY2VJRD0ieG1wLmlpZDowNTU1Njk0MC1kYjQ0LTRiNDktYmUyZS01MTBlNTBkZGI2OWMiCiAgIHhtcE1NOk9yaWdpbmFsRG9jdW1lbnRJRD0ieG1wLmRpZDpkYzIwMmViOC02NTljLTRmYWMtYjhmOS0yMmRmNmNlYzBlNTUiCiAgIEdJTVA6QVBJPSIyLjAiCiAgIEdJTVA6UGxhdGZvcm09Ik1hYyBPUyIKICAgR0lNUDpUaW1lU3RhbXA9IjE3Mzg5MTg0NTcyNzQ4OTQiCiAgIEdJTVA6VmVyc2lvbj0iMi4xMC4zOCIKICAgZGM6Rm9ybWF0PSJpbWFnZS9wbmciCiAgIHRpZmY6T3JpZW50YXRpb249IjEiCiAgIHhtcDpDcmVhdG9yVG9vbD0iR0lNUCAyLjEwIgogICB4bXA6TWV0YWRhdGFEYXRlPSIyMDI1OjAyOjA3VDA3OjU0OjE3LTAxOjAwIgogICB4bXA6TW9kaWZ5RGF0ZT0iMjAyNTowMjowN1QwNzo1NDoxNy0wMTowMCI+CiAgIDx4bXBNTTpIaXN0b3J5PgogICAgPHJkZjpTZXE+CiAgICAgPHJkZjpsaQogICAgICBzdEV2dDphY3Rpb249InNhdmVkIgogICAgICBzdEV2dDpjaGFuZ2VkPSIvIgogICAgICBzdEV2dDppbnN0YW5jZUlEPSJ4bXAuaWlkOmY5MzQzYjk2LWM5YzQtNGEzNi05Y2FiLTFjMTM3ZTIwYmM0MiIKICAgICAgc3RFdnQ6c29mdHdhcmVBZ2VudD0iR2ltcCAyLjEwIChNYWMgT1MpIgogICAgICBzdEV2dDp3aGVuPSIyMDI1LTAyLTA3VDA3OjU0OjE3LTAxOjAwIi8+CiAgICA8L3JkZjpTZXE+CiAgIDwveG1wTU06SGlzdG9yeT4KICA8L3JkZjpEZXNjcmlwdGlvbj4KIDwvcmRmOlJERj4KPC94OnhtcG1ldGE+CiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAKPD94cGFja2V0IGVuZD0idyI/PmpeQs4AAAAGYktHRAAwAIIAOnzfFaUAAAAJcEhZcwAACxMAAAsTAQCanBgAAAAHdElNRQfpAgcINhH3N2sMAAAIBElEQVRo3u2aW2zbVx3HP+f//9uOr7k5bq4lSZveMmhTumYFthVoN9A2hhDiASFAQpqEhNQneELiBfGABBJDSAyBNKkIgTbQWsQkRgXrOq2XKdpUJnVbL0njJL4ldnyLL7F9eHDqxPHtb8fOmOSvlNj/43PO73J+t3P+B9poo4022mjj/wai3gEhrxQA6SSABMTG/2LsGRVyp8z55mRN/jQj9A7qp6Vb4Nf/IsX8ewBkAUK+TYGLZpOF9h+f+534WaPC/vacFKmEzNZi0doJxg7UgX1w9ru1Bdcl8G9+IA9m0twqjCkIthUl6ywRqOdeqH+lf/9DKeJhsvr4k0CehtmO+twvqtPTak33q+ekyKS5lclmxeycm9nZedbWEkWsZDIZAoFg4dnp7OHsFx8V3V2O7NVXpHrqq/UJHQ8DUvLiH18mkUgWr6jVgsNhK2ob7N8j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";
 
     this.logo.render = function (ctx) {
         var gradient = ctx.createLinearGradient(
@@ -5869,8 +5814,11 @@ IDE_Morph.prototype.aboutSnap = function () {
         module, btn1, btn2, btn3, btn4, licenseBtn, translatorsBtn,
         world = this.world();
 
-    aboutTxt = 'Snap! ' + SnapVersion + '\nBuild Your Own Blocks\n\n'
-        + 'Copyright \u24B8 2008-2026 Jens M\u00F6nig and '
+    aboutTxt = 'Startr Snap! ' + SnapVersion + '\nBuild Your Own Blocks\n\n'
+        + 'Startr Features Copyright Startr LLC 2022-2026\n'
+        + ''
+        + '\n\n'
+        + 'Snap! Copyright \u24B8 2008-2026 Jens M\u00F6nig and '
         + 'Brian Harvey\n'
         + 'jens@moenig.org, bh@cs.berkeley.edu\n\n'
         + '        Snap! is developed by the University of California, '
@@ -5880,11 +5828,11 @@ IDE_Morph.prototype.aboutSnap = function () {
         + 'The design of Snap! is influenced and inspired by Scratch,\n'
         + 'from the Lifelong Kindergarten group at the MIT Media Lab\n\n'
 
-        + 'for more information see https://snap.berkeley.edu';
+        + 'for more information see https://snap.startr.cloud';
 
     noticeTxt = localize('License')
         + '\n\n'
-        + 'Snap! is free software: you can redistribute it and/or modify\n'
+        + 'Startr Snap! is free software: you can redistribute it and/or modify\n'
         + 'it under the terms of the GNU Affero General Public License as\n'
         + 'published by the Free Software Foundation, either version 3 of\n'
         + 'the License, or (at your option) any later version.\n\n'
@@ -5902,7 +5850,9 @@ IDE_Morph.prototype.aboutSnap = function () {
         + 'Get in touch with us, we\'ll make it work.';
 
     creditsTxt = localize('Contributors')
-        + '\n\nNathan Dinsmore: Saving/Loading, Snap-Logo Design, '
+        + '\n\n'
+        + '\n\nJens Mönig: concept, design, coding'
+        + '\n\nNathan Dinsmore: Saving/Loading, Original Snap-Logo Design, '
         + '\ncountless bugfixes and optimizations'
         + '\nMichael Ball: Time/Date UI, Library Import Dialog,'
         + '\ncountless bugfixes and optimizations'
@@ -5991,7 +5941,7 @@ IDE_Morph.prototype.aboutSnap = function () {
         return tm;
     }
 
-    dlg.inform('About Snap', aboutTxt, world, this.logo.cachedTexture);
+    dlg.inform('About Startr Snap', aboutTxt, world, this.logo.cachedTexture);
     btn1 = dlg.buttons.children[0];
     translatorsBtn = dlg.addButton(
         () => {
