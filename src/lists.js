@@ -7,7 +7,7 @@
     written by Jens Mönig and Brian Harvey
     jens@moenig.org, bh@cs.berkeley.edu
 
-    Copyright (C) 2025 by Jens Mönig and Brian Harvey
+    Copyright (C) 2026 by Jens Mönig and Brian Harvey
 
     This file is part of Snap!.
 
@@ -59,13 +59,13 @@ Color, Point, WatcherMorph, StringMorph, SpriteMorph, ScrollFrameMorph, isNil,
 CellMorph, ArrowMorph, MenuMorph, snapEquals, localize, isString, IDE_Morph,
 MorphicPreferences, TableDialogMorph, SpriteBubbleMorph, SpeechBubbleMorph,
 TableFrameMorph, TableMorph, Variable, isSnapObject, Costume, contains, detect,
-Context, ZERO, WHITE, ReadStream, Process*/
+Context, ZERO, WHITE, ReadStream, Process, Table*/
 
 /*jshint esversion: 6*/
 
 // Global settings /////////////////////////////////////////////////////
 
-modules.lists = '2025-June-12';
+modules.lists = '2026-August-17';
 
 var List;
 var ListWatcherMorph;
@@ -415,6 +415,10 @@ List.prototype.isTable = function () {
     return this.enableTables && (this.length() > 100 || this.cols() > 1);
 };
 
+List.prototype.isADT = function () {
+    return this.lookup('_morph') instanceof Context;
+};
+
 List.prototype.get = function (col, row) {
     var r, len, cols;
     if (!col) {
@@ -458,7 +462,7 @@ List.prototype.cols = function () {
 
     for (i = 1; i <= len; i += 1) {
         r = this.at(i);
-        if (r instanceof List) {
+        if (r instanceof List && !r.isADT()) {
             count = Math.max(count, r.length());
         }
     }
@@ -477,6 +481,10 @@ List.prototype.rowName = function (row) {
 };
 
 List.prototype.columnNames = function () {
+    return [];
+};
+
+List.prototype.recordNames = function () {
     return [];
 };
 
@@ -1160,8 +1168,15 @@ List.prototype.asJSON = function () {
             return obj;
         }
         return items.map(element => element instanceof List ?
-            objectify(element) : element
+            objectify(element) : numberize(element)
         );
+    }
+
+    function numberize(token) {
+        if (isString(token) && parseFloat(token) === +token) {
+            return +token;
+        }
+        return token;
     }
 
     function canBeObject(array) {
@@ -1214,6 +1229,19 @@ List.prototype.asWords = function () {
     return this.itemsArray().map(each =>
         each instanceof List ? each.asWords() : each.toString().trim()
     ).filter(word => word.length).join(' ');
+};
+
+List.prototype.asTable = function (columnNamesList) {
+    // experimental - create an internal table object with a specifiable
+    // list of column names to be displayed in a table view
+    // currently unused - not needed except for Shriram's tables extension
+    var dim = this.quickShape(),
+        table = new Table(dim.at(2), dim.at(1));
+    table.setRows(
+        this.itemsArray().map(row => row.itemsArray()),
+        columnNamesList.itemsArray()
+    );
+    return table;
 };
 
 // List to blocks parsing and encoding, highly experimental for v10
@@ -1511,6 +1539,7 @@ ListWatcherMorph.prototype.init = function (list, parentCell) {
         'down',
         SyntaxElementMorph.prototype.fontSize
     );
+    this.arrow.mouseDownLeft = () => null;
     this.arrow.mouseClickLeft = function () {myself.startIndexMenu(); };
     this.arrow.setRight(this.handle.right());
     this.arrow.setBottom(this.handle.top());
@@ -1565,7 +1594,9 @@ ListWatcherMorph.prototype.update = function (anyway) {
                 m.contentsMorph.update();
             } else if (isSnapObject(m.contents) ||
                 (m.contents instanceof Costume) ||
-                (m.contents instanceof Context)
+                (m.contents instanceof Context) ||
+                (m.contents instanceof Process) ||
+                (m.contents instanceof List && m.contents.isADT())
             ) {
                 m.update();
             }

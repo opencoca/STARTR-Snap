@@ -9,7 +9,7 @@
     written by Jens Mönig
     jens@moenig.org
 
-    Copyright (C) 2025 by Jens Mönig
+    Copyright (C) 2026 by Jens Mönig
 
     This file is part of Snap!.
 
@@ -62,11 +62,12 @@ isNil, WatcherMorph, List, ListWatcherMorph, alert, console, TableMorph, BLACK,
 TableFrameMorph, ColorSlotMorph, isSnapObject, newCanvas, Symbol, SVG_Costume,
 SnapExtensions, AlignmentMorph, TextMorph, Cloud, HatBlockMorph, InputSlotMorph,
 StagePickerMorph, CustomBlockDefinition, CommentMorph, BooleanSlotMorph, Color,
-CustomHatBlockMorph*/
+CustomHatBlockMorph, SymbolMorph, MenuMorph, MorphicPreferences,
+SpeechBubbleMorph*/
 
 /*jshint esversion: 11, bitwise: false, evil: true*/
 
-modules.threads = '2025-August-29';
+modules.threads = '2026-October-23';
 
 var ThreadManager;
 var Process;
@@ -257,7 +258,8 @@ ThreadManager.prototype.startProcess = function (
     atomic, // special option used (only) for "onStop" scripts
     variables, // optional variable frame, used for WHEN hats
     noHalo,
-    genericCondition
+    genericCondition,
+    silentVars // for dynamic, user-scripted widgets, ignores missing variables
 ) {
     var top = block.topBlock(),
         active = this.findProcess(top, receiver),
@@ -275,6 +277,7 @@ ThreadManager.prototype.startProcess = function (
     newProc.isClicked = isClicked || false;
     newProc.isAtomic = atomic || false;
     newProc.isGenericCondition = genericCondition || false;
+    newProc.isSilentVar = silentVars || false;
 
     // in case an optional variable frame has been passed,
     // copy it into the new outer context.
@@ -422,6 +425,7 @@ ThreadManager.prototype.step = function (skipAnimations) {
 ThreadManager.prototype.removeTerminatedProcesses = function () {
     // and un-highlight their scripts
     var remaining = [],
+        now = Date.now(),
         count;
     this.processes.forEach(proc => {
         var result,
@@ -460,22 +464,33 @@ ThreadManager.prototype.removeTerminatedProcesses = function () {
                     proc.homeContext.receiver.stopTalking();
                 }
             }
-            if (proc.topBlock instanceof ReporterBlockMorph ||
+            if ((proc.topBlock instanceof ReporterBlockMorph &&
+                        proc.isClicked) ||
                     proc.isShowingResult || proc.exportResult) {
                 result = proc.homeContext.inputs[0];
                 if (proc.onComplete instanceof Function) {
                     proc.onComplete(result);
                 } else {
                     if (result instanceof List) {
-                        proc.topBlock.showBubble(
-                            result.isTable() ?
-                                    new TableFrameMorph(
-                                        new TableMorph(result, 10)
-                                    )
-                                    : new ListWatcherMorph(result),
-                            proc.exportResult,
-                            proc.receiver
-                        );
+                        if (result.isADT()) {
+                            // compute the ADT's dynamic view
+                            proc.pushContext();
+                            proc.homeContext.inputs.pop();
+                            proc.evaluate(
+                                proc.reportListItem('_morph', result)
+                            );
+                            remaining.push(proc);
+                        } else {
+                            proc.topBlock.showBubble(
+                                result.isTable() ?
+                                        new TableFrameMorph(
+                                            new TableMorph(result)
+                                        )
+                                        : new ListWatcherMorph(result),
+                                proc.exportResult,
+                                proc.receiver
+                            );
+                        }
                     } else {
                         proc.topBlock.showBubble(
                             result,
@@ -487,6 +502,7 @@ ThreadManager.prototype.removeTerminatedProcesses = function () {
             } else if (proc.onComplete instanceof Function) {
                 proc.onComplete(proc.homeContext.inputs[0]);
             }
+            proc.version = now;
         } else {
             remaining.push(proc);
         }
@@ -645,7 +661,8 @@ function Process(topBlock, receiver, onComplete, yieldFirst) {
     this.errorFlag = false;
     this.context = null;
     this.homeContext = new Context(null, null, null, receiver);
-    this.lastYield =  Date.now();
+    this.lastYield = Date.now();
+    this.version = this.lastYield;
     this.isFirstStep = true;
     this.isAtomic = false;
     this.prompter = null;
@@ -664,7 +681,8 @@ function Process(topBlock, receiver, onComplete, yieldFirst) {
     this.canBroadcast = true; // used to control "when I am stopped"
     this.isAnimated = false; // temporary - used to control yields for animation
     this.isGenericCondition = false; // used for displaying halos
-    this.hasFiredGenericCondition = false; // ised for displaying halos
+    this.hasFiredGenericCondition = false; // used for displaying halos
+    this.isSilentVar = false; // silences missing variable references in widgets
 
     if (topBlock) {
         this.homeContext.variables.parentFrame =
@@ -756,10 +774,12 @@ Process.prototype.stop = function () {
     this.readyToYield = true;
     this.readyToTerminate = true;
     this.errorFlag = false;
+    this.isPaused = false;
     if (this.context) {
         this.context.stopMusic();
     }
     this.canBroadcast = false;
+    this.version = Date.now();
 };
 
 Process.prototype.pause = function () {
@@ -771,6 +791,16 @@ Process.prototype.pause = function () {
     if (this.context && this.context.startTime) {
         this.pauseOffset = Date.now() - this.context.startTime;
     }
+    this.version = Date.now();
+};
+
+Process.prototype.step = function () {
+    // only for UI
+    if (this.isPaused) {
+        this.resume();
+        this.runStep();
+        this.pause();
+    }
 };
 
 Process.prototype.resume = function () {
@@ -779,12 +809,142 @@ Process.prototype.resume = function () {
     }
     this.isPaused = false;
     this.pauseOffset = null;
+    this.version = Date.now();
 };
 
 Process.prototype.pauseStep = function () {
     this.lastYield = Date.now();
     if (this.context && this.context.startTime) {
         this.context.startTime = this.lastYield - this.pauseOffset;
+    }
+};
+
+// Process GUI
+
+Process.prototype.widget = function () {
+    // answer a morph representing my current state with a context menu
+    // that lets the user interact
+    var morph = new Morph(),
+        data = this;
+    morph.color = new Color(255, 255, 255, 0);
+    morph.setExtent(new Point(30, 30));
+    morph.version = null;
+    morph.readout = null;
+    morph.step = function () {
+        if (this.version !== data.version) {
+            if (this.readout instanceof Morph) {
+                this.removeChild(this.readout);
+            }
+            if (data.isPaused) {
+                this.readout = new SymbolMorph('gearsApartAnimated', 30);
+            } else if (data.isRunning()) {
+                this.readout = new SymbolMorph('gearsAnimated', 30);
+            } else if (data.errorFlag) {
+                this.readout = new SymbolMorph(
+                    'gearsAnimatedBroken',
+                    30,
+                    new Color(173, 15, 0)
+                );
+            } else {
+                this.readout = new SymbolMorph('gearsApart', 30);
+            }
+            this.readout.setCenter(this.center());
+            this.add(this.readout);
+            this.version = data.version;
+            this.changed();
+        }
+    };
+    morph.userMenu = function () {
+        if (this.parentThatIsA(IDE_Morph)?.isAppMode) {return; }
+        return data.menu();
+    };
+    morph.step();
+    return morph;
+};
+
+Process.prototype.menu = function () {
+    var menu = new MenuMorph(this),
+        size = MorphicPreferences.menuFontSize;
+
+    if (this.isPaused) {
+        menu.addPair(
+            [new SymbolMorph('stepForward', size), localize('step')],
+            'step'
+        );
+        menu.addPair(
+            [new SymbolMorph('pointRight', size), localize('resume')],
+            'resume'
+        );
+    } else if (this.isRunning()) {
+        menu.addPair(
+            [new SymbolMorph('pause', size), localize('pause')],
+            'pause'
+        );
+    } else if (!this.errorFlag) {
+        return;
+    }
+    menu.addPair(
+        [new SymbolMorph('square', size), localize('stop')],
+        'stop'
+    );
+    return menu;
+};
+
+// Process primitives
+
+Process.prototype.reportNewProcess = function (script, inputs) {
+    this.assertType(script, ['command', 'reporter', 'predicate', 'hat']);
+    this.assertType(inputs, 'list');
+    return this.fork(script, inputs);
+};
+
+Process.prototype.reportProcessAttribute = function (choice, process) {
+    var value;
+    this.assertType(process, 'process');
+    switch (this.inputOption(choice)) {
+    case 'script':
+        return process.topBlock.reify();
+    case 'block':
+        return process.context;
+    case 'result':
+        value = process.homeContext.inputs[0];
+        return isNil(value) ? '' : value;
+    case 'object':
+        value = process.receiver;
+        return isNil(value) ? '' : value;
+    default:
+        return '';
+    }
+};
+
+Process.prototype.reportProcessState = function (process, choice) {
+    var state;
+    this.assertType(process, 'process');
+    if (process.isPaused) {
+        state = 'paused';
+    } else if (process.isRunning()) {
+        state = 'running';
+    } else if (process.errorFlag) {
+        state = 'error';
+    } else {
+        state = 'terminated';
+    }
+    return snapEquals(state, this.inputOption(choice));
+};
+
+Process.prototype.doChangeProcess = function (choice, process) {
+    this.assertType(process, 'process');
+    switch (this.inputOption(choice)) {
+    case 'pause':
+        return process.pause();
+    case 'resume':
+        return process.resume();
+    case 'step':
+        return process.step();
+    case 'stop':
+        return process.stop();
+    default:
+        return '';
     }
 };
 
@@ -1497,6 +1657,13 @@ Process.prototype.evaluate = function (
         }
         return this.hyperEval(context, args);
     }
+    if (context instanceof BlockMorph) {
+        return this.evaluate(
+            context.fullCopy().reify(),
+            new List(),
+            context instanceof CommandBlockMorph
+        );
+    }
     if (!(context instanceof Context)) {
         if (isCommand) {
             return this.returnValueToParentContext(null);
@@ -1641,6 +1808,7 @@ Process.prototype.fork = function (context, args) {
     proc.initializeFor(context, args);
     // proc.pushContext('doYield');
     stage.threads.processes.push(proc);
+    return proc;
 };
 
 Process.prototype.initializeFor = function (context, args) {
@@ -1730,6 +1898,8 @@ Process.prototype.reportEnvironment = function (choice, trgt = this.context) {
         return this.reportInputs(trgt);
     case 'object':
         return this.reportData(trgt);
+    case 'process':
+        return this;
     default:
         return this.reportSelf(trgt);
     }
@@ -2449,6 +2619,11 @@ Process.prototype.reportListItem = function (index, list) {
     }
     if (index instanceof List && this.enableHyperOps) {
         return list.query(index);
+    }
+    if (index instanceof Context) {
+        // allow binding a function to another object to enable
+        // polymorphic messages involving a "super class"
+        return this.reportContextFor(index, list);
     }
     value = list.lookup(index);
     if (value instanceof Context && (parseFloat(index) !== +index)) {
@@ -3843,9 +4018,9 @@ Process.prototype.reportCombine = function (list, reporter) {
                 this.returnValueToParentContext(
                     list.length() ?
                         list.at(1)
-                        : (reporter.expression.selector === 'reportJoinWords' ?
-                            ''
-                            : 0)
+                        : this.emptyListValueForCombine(
+                            reporter.expression.selector
+                        )
                 );
                 return;
             }
@@ -3885,9 +4060,9 @@ Process.prototype.reportCombine = function (list, reporter) {
                 this.returnValueToParentContext(
                     list.length() ?
                         list.at(1)
-                        : (reporter.expression.selector === 'reportJoinWords' ?
-                            ''
-                            : 0)
+                        : this.emptyListValueForCombine(
+                            reporter.expression.selector
+                        )
                 );
                 return;
             }
@@ -3994,6 +4169,23 @@ Process.prototype.canRunOptimizedForCombine = function (aContext) {
     );
 };
 
+Process.prototype.emptyListValueForCombine = function (selector) {
+    switch (selector) {
+    case 'reportJoinWords':
+        return '';
+    case 'reportVariadicAnd':
+        return true;
+    case 'reportVariadicOr':
+        return false;
+    case 'reportConcatenatedLists':
+        return new List();
+    case 'reportCrossproduct':
+        return new List([new List()]);
+    default:
+        return 0;
+    }
+};
+
 Process.prototype.reportPipe = function (value, reporterList) {
     // Pipe - answer an aggregation of channeling an initial value
     // through a sequence of monadic functions
@@ -4069,7 +4261,26 @@ Process.prototype.doGlide = function (secs, endX, endY) {
     this.pushContext();
 };
 
+// Process SAY and THINK primitives
+
+Process.prototype.bubble = function (data) {
+    if (data instanceof List && data.isADT()) {
+        return this.dynamicViewFor(data);
+    }
+    this.blockReceiver().bubble(data);
+};
+
+Process.prototype.doThink = function (data) {
+    if (data instanceof List && data.isADT()) {
+        return this.dynamicViewFor(data);
+    }
+    this.blockReceiver().doThink(data);
+};
+
 Process.prototype.doSayFor = function (data, secs) {
+    if (data instanceof List && data.isADT()) {
+        return this.dynamicViewFor(data);
+    }
     if (!this.context.startTime) {
         this.context.startTime = Date.now();
         this.blockReceiver().bubble(data);
@@ -4083,6 +4294,9 @@ Process.prototype.doSayFor = function (data, secs) {
 };
 
 Process.prototype.doThinkFor = function (data, secs) {
+    if (data instanceof List && data.isADT()) {
+        return this.dynamicViewFor(data);
+    }
     if (!this.context.startTime) {
         this.context.startTime = Date.now();
         this.blockReceiver().doThink(data);
@@ -4093,6 +4307,13 @@ Process.prototype.doThinkFor = function (data, secs) {
     }
     this.pushContext('doYield');
     this.pushContext();
+};
+
+Process.prototype.dynamicViewFor = function (data) {
+    // private - compute the dynamic view for an ADT
+    this.context.inputs = [];
+    this.pushContext();
+    this.evaluate(this.reportListItem('_morph', data));
 };
 
 Process.prototype.blockReceiver = function () {
@@ -4830,14 +5051,23 @@ Process.prototype.getLastMessage = function () {
 // Process type inference
 
 Process.prototype.reportIsA = function (thing, typeString) {
-    var choice = this.inputOption(typeString);
+    var choice = this.inputOption(typeString),
+        primType;
     switch (choice) {
     case 'agent':
         return isSnapObject(thing);
     case 'script':
         return thing instanceof Context;
     default:
-        return this.reportTypeOf(thing) === choice;
+        primType = this.reportTypeOf(thing);
+        return primType === choice || // support ADTs (user defined structs)
+            primType === 'list' &&
+                (this.reportListItem('_type', thing) === typeString ||
+                    ((this.reportListItem(['parent'], thing) instanceof List) &&
+                    this.reportIsA(
+                        this.reportListItem(['parent'], thing),
+                        typeString
+                    )));
     }
 };
 
@@ -4890,6 +5120,9 @@ Process.prototype.reportTypeOf = function (thing) {
         return 'text';
     }
     if (thing instanceof SpriteMorph) {
+        if (thing.isCorpse) {
+            return 'corpse';
+        }
         return 'sprite';
     }
     if (thing instanceof StageMorph) {
@@ -4903,6 +5136,9 @@ Process.prototype.reportTypeOf = function (thing) {
     }
     if (thing instanceof Color) {
         return 'color';
+    }
+    if (thing instanceof Process) {
+        return 'process';
     }
     if (thing instanceof Context) {
         if (thing.expression instanceof RingMorph) {
@@ -5597,6 +5833,9 @@ Process.prototype.reportBasicLetter = function (idx, string) {
     var str = isNil(string) ? '' : string.toString(),
         char_array = this.safeStringArray(str),
         i;
+    if (this.inputOption(idx) === 'all') {
+        return new List(char_array);
+    }
     if (this.inputOption(idx) === 'random') {
         idx = this.reportBasicRandom(1, char_array.length);
     }
@@ -6083,6 +6322,30 @@ Process.prototype.toInputTextSyntax = function (list) {
 
 // Process debugging
 
+Process.prototype.bubbleADT = function () {
+    // private / helper - display intermediate ADT results
+    // for visible steppingvinside a speech balloon
+    var anchor = this.context.inputs[0],
+        readout = this.context.inputs[1],
+        bubble;
+    if (readout instanceof Morph) {
+        bubble = new SpeechBubbleMorph(
+            readout,
+            null,
+            null,
+            0
+        );
+        bubble.popUp(
+            anchor.world(),
+            anchor.rightCenter(),
+            false // isClickable
+        );
+    } else {
+        anchor.showBubble(readout);
+    }
+    this.popContext();
+};
+
 Process.prototype.alert = function (data) {
     // debugging primitives only work in dev mode, otherwise they're nop
     var world;
@@ -6537,6 +6800,20 @@ Process.prototype.doPasteOn = function (name) {
 
 Process.prototype.doCutFrom = function (name) {
     this.blitOn(name, 'destination-out');
+};
+
+Process.prototype.doDrawOn = function (mode, surface) {
+    var rcvr = this.blockReceiver(),
+        mask = this.inputOption(mode),
+        dest = this.inputOption(surface),
+        tools = ['paint', 'erase', 'overdraw'];
+    rcvr.sheet = (dest === 'pen trails' ? null
+        : this.reportObject(dest) || null);
+    if (rcvr.sheet === rcvr || rcvr.sheet instanceof StageMorph) {
+        // drawing on the stage's costume is disabled for now.
+        rcvr.sheet = null;
+    }
+    rcvr.tool = contains(tools, mask) ? mask || null : null;
 };
 
 Process.prototype.blitOn = function (name, mask, thisObj, stage) {
@@ -7174,7 +7451,7 @@ Process.prototype.reportBasicAttributeOf = function (attribute, name) {
         stage = thisObj.parentThatIsA(StageMorph);
         if (name instanceof Context) {
             thatObj = name;
-        } else if (stage.name === name) {
+        } else if (stage?.name === name) {
             thatObj = stage;
         } else {
             thatObj = this.getOtherObject(name, thisObj, stage);
@@ -7367,6 +7644,10 @@ Process.prototype.reportGet = function (query) {
                     each => each.fullCopy().reify()
                 )
             );
+        case 'processes':
+            stage = thisObj.parentThatIsA(StageMorph);
+            stage.threads.removeTerminatedProcesses();
+            return new List(stage ? stage.threads.processes : []);
         case 'solutions':
             if (thisObj.solution) {
                 return new List(
@@ -7446,6 +7727,7 @@ Process.prototype.reportGet = function (query) {
             'other clones',
             'neighbors',
             'scripts',
+            'processes',
             'solutions',
             'blocks',
             'categories',
@@ -7473,7 +7755,7 @@ Process.prototype.reportObject = function (name) {
     if (thisObj) {
         this.assertAlive(thisObj);
         stage = thisObj.parentThatIsA(StageMorph);
-        if (snapEquals(stage.name, name)) {
+        if (snapEquals(stage?.name, name)) {
             thatObj = stage;
         } else {
             thatObj = this.getOtherObject(name, thisObj, stage);
@@ -8163,6 +8445,12 @@ Process.prototype.costumeNamed = function (name) {
     if (name instanceof Costume) {
         return name;
     }
+    if (name instanceof Context) {
+        name = name.toBlock();
+    }
+    if (name instanceof BlockMorph) {
+        return new Costume(name.scriptPic(), localize('block'));
+    }
     if (typeof name === 'number') {
         return this.blockReceiver().costumes.at(name);
     }
@@ -8329,17 +8617,31 @@ Process.prototype.returnValueToParentContext = function (value) {
         ) {
             let anchor = this.context.expression;
             if (!anchor.world()) {
-                // find a place to display the result of custon reporters
-                anchor = this.topBlock;
+                // find a place to display the result of custom reporters
+                anchor = target.expression;
+                if (!anchor || !anchor.world || !anchor.world()) {
+                    return;
+                }
             }
             if (value instanceof List) {
-                anchor.showBubble(
-                    value.isTable() ?
-                        new TableFrameMorph(new TableMorph(value, 10))
-                        : new ListWatcherMorph(value),
-                    this.exportResult,
-                    this.receiver
-                );
+                if (value.isADT()) {
+                    // compute the ADT's dynamic view
+                    this.popContext();
+                    this.pushContext('bubbleADT');
+                    this.context.addInput(anchor);
+                    this.pushContext();
+                    this.evaluate(
+                        this.reportListItem('_morph', value)
+                    );
+                } else {
+                    anchor.showBubble(
+                        value.isTable() ?
+                            new TableFrameMorph(new TableMorph(value))
+                            : new ListWatcherMorph(value),
+                        this.exportResult,
+                        this.receiver
+                    );
+                }
             } else {
                 anchor.showBubble(
                     value,
@@ -8528,10 +8830,22 @@ Process.prototype.reportBasicBlockAttribute = function (attribute, block) {
         return expr ? !!expr.isCustomBlock : false;
     case 'global?':
         return (expr && expr.isCustomBlock) ? !!expr.isGlobal : true;
+    case 'expression':
+        return expr instanceof BlockMorph ? expr.fullCopy() : '';
     case 'type':
         return ['command', 'reporter', 'predicate', 'hat'].indexOf(
             this.reportTypeOf(block)
         ) + 1;
+    case 'answer':
+        if (expr instanceof ReporterBlockMorph) {
+            if (expr.isCustomBlock) {
+                return (expr.isGlobal ? expr.definition
+                    : this.blockReceiver().getMethod(expr.semanticSpec)
+                ).reports || '';
+            }
+            return expr.reports || '';
+        }
+        return '';
     case 'scope':
         return expr.isCustomBlock ? (expr.isGlobal ? 1 : 2) : 0;
     case 'selector':
@@ -8557,6 +8871,14 @@ Process.prototype.reportBasicBlockAttribute = function (attribute, block) {
                         : each.getSpec())
             )
         ).map(spec => this.slotType(spec));
+    case 'strict':
+        if (expr.isCustomBlock) {
+            return (expr.isGlobal ?
+                expr.definition
+                : this.blockReceiver().getMethod(expr.semanticSpec)
+            ).enforceTypes;
+        }
+        return false;
     case 'defaults':
         slots = new List();
         if (expr.isCustomBlock) {
@@ -8975,7 +9297,37 @@ Process.prototype.slotType = function (spec) {
         '18':           18,
         'elseif':       18, // spec
         // mnemonics:
-        'conditionals': 18
+        'conditionals': 18,
+
+        '19':           19,
+        'parameter':    19, // spec
+        // mnemonics:
+        'parm':         19,
+
+        '20':           20,
+        'adt':          20, // spec
+        // mnemonics:
+        '{}':           20,
+        'dict':         20,
+        'struct':       20,
+
+        '21':           21,
+        'nue':          21, // spec
+
+        '22':           22,
+        'p':            22, // spec
+        // mnemonics:
+        'proc':         22,
+        'process':      22,
+
+        '23':           23,
+        'basic':        23, // spec
+
+        '24':           24,
+        'basic#':       24, // spec
+
+        '25':           25,
+        'basic$':       25 // spec
 
     }[key];
     if (num === undefined) {
@@ -8988,7 +9340,7 @@ Process.prototype.slotSpec = function (num) {
     // answer a spec indicating the shape of a slot represented by a number
     // or by a textual mnemomic
     var prefix = '',
-        id = this.reportIsA(num, 'text') ? this.slotType(num) : +num,
+        id,
         spec;
 
     if (num instanceof List) { // input group
@@ -8997,6 +9349,7 @@ Process.prototype.slotSpec = function (num) {
         ).join('');
     }
 
+    id = this.reportIsA(num, 'text') ? this.slotType(num) : +num;
     if (id >= 100) {
         prefix = '%mult';
         id -= 100;
@@ -9004,7 +9357,8 @@ Process.prototype.slotSpec = function (num) {
 
     spec = ['s', 'n', 'b', 'l', 'mlt', 'cs', 'cmdRing', 'repRing', 'predRing',
     'anyUE', 'boolUE', 'obj', 'upvar', 'clr', 'scriptVars', 'loop', 'receive',
-    'send', 'elseif'][id];
+    'send', 'elseif', 'parameter', 'adt', 'nUE', 'p', 'basic', 'basic#',
+    'basic$'][id];
 
     if (spec === undefined) {
         return null;
@@ -9152,6 +9506,12 @@ Process.prototype.doSetBlockAttribute = function (attribute, block, val) {
             }
         }
         break;
+    case 'answer':
+        this.assertType(val, 'text');
+        if (['reporter', 'predicate'].includes(def.type)) {
+            def.reports = val;
+        }
+        break;
     case 'scope':
         if (isInUse()) {
             throw new Error('cannot change this\nfor a block that is in use');
@@ -9202,6 +9562,10 @@ Process.prototype.doSetBlockAttribute = function (attribute, block, val) {
                 def.declarations.set(name, info);
             }
         });
+        break;
+    case 'strict':
+        this.assertType(val, 'Boolean');
+        def.enforceTypes = val;
         break;
     case 'defaults':
         this.assertType(val, ['list', 'Boolean', 'number', 'text', 'color']);
@@ -9414,7 +9778,7 @@ Process.prototype.doSetBlockAttribute = function (attribute, block, val) {
         template.refreshDefaults();
     }
     ide.flushPaletteCache();
-    ide.categories.refreshEmpty();
+    ide.refreshEmptyCategories();
     ide.refreshPalette();
     rcvr.recordUserEdit(
         'scripts',
@@ -9490,7 +9854,7 @@ Process.prototype.doDefineBlock = function (upvar, label, context) {
 
     // update the IDE
     ide.flushPaletteCache();
-    ide.categories.refreshEmpty();
+    ide.refreshEmptyCategories();
     ide.refreshPalette();
     rcvr.recordUserEdit(
         'palette',
@@ -9598,7 +9962,7 @@ Process.prototype.doDeleteBlock = function (context) {
 
     // update the IDE
     ide.flushPaletteCache();
-    ide.categories.refreshEmpty();
+    ide.refreshEmptyCategories();
     ide.refreshPalette();
     rcvr.recordUserEdit(
         'palette',
@@ -10391,7 +10755,12 @@ VariableFrame.prototype.fork = function (names = []) {
     // answer a copy that only has entries for the given array of variable names
     // and only has values for primitive data.
     // used for including data dependencies in libraries.
-    var frame = new VariableFrame();
+    //
+    // Note: costumes and sounds can - currently - only be referenced directly
+    // by a dependent variable, not as part of a data structure (list) assigned
+    // to it, for reasons of data bloat in libraries.
+    var frame = new VariableFrame(),
+        types = ['text', 'number', 'Boolean', 'costume', 'sound'];
     this.names(true).forEach(vName => {
         var v, val, typ;
         if (names.includes(vName)) {
@@ -10400,7 +10769,7 @@ VariableFrame.prototype.fork = function (names = []) {
                 val = '';
             } else {
                 typ = Process.prototype.reportTypeOf(v.value);
-                if (['text', 'number', 'Boolean'].includes(typ) ||
+                if (types.includes(typ) ||
                     (v.value instanceof List &&
                         (v.value.canBeCSV() || v.value.canBeJSON()))
                 ) {
@@ -10551,6 +10920,11 @@ VariableFrame.prototype.getVar = function (name, proc) {
     if (typeof name === 'number') {
         // empty input with a Binding-ID called without an argument
         return '';
+    }
+    if (proc?.isSilentVar) {
+        // don't throw an error inside a user-scripted dynamic dropdown etc.
+        // instead return an empty list, because this is the basis for ADTs
+        return new List();
     }
     this.variableError(name);
 };

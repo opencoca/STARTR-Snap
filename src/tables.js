@@ -7,7 +7,7 @@
     written by Jens Mönig
     jens@moenig.org
 
-    Copyright (C) 2025 by Jens Mönig
+    Copyright (C) 2026 by Jens Mönig
 
     This file is part of Snap!.
 
@@ -69,11 +69,11 @@ MorphicPreferences, FrameMorph, HandleMorph, DialogBoxMorph, StringMorph, isNil,
 SpriteMorph, Context, Costume, BlockEditorMorph, SymbolMorph, IDE_Morph, Sound,
 SyntaxElementMorph, MenuMorph, SpriteBubbleMorph, SpeechBubbleMorph, CellMorph,
 ListWatcherMorph, BoxMorph, Variable, isSnapObject, useBlurredShadows, Color,
-CostumeIconMorph, SoundIconMorph, localize, display*/
+CostumeIconMorph, SoundIconMorph, Process, localize, display*/
 
-/*jshint esversion: 6*/
+/*jshint esversion: 11*/
 
-modules.tables = '2025-April-03';
+modules.tables = '2026-October-02';
 
 var Table;
 var TableCellMorph;
@@ -171,6 +171,10 @@ Table.prototype.cols = function () {
 
 Table.prototype.columnNames = function () {
     return this.colNames;
+};
+
+Table.prototype.recordNames = function () {
+    return this.rowNames;
 };
 
 // Table setting:
@@ -276,6 +280,7 @@ TableCellMorph.uber = Morph.prototype;
 // TableCellMorph global setting:
 
 TableCellMorph.prototype.cachedListSymbol = null;
+TableCellMorph.prototype.cachedADTSymbol = null;
 
 TableCellMorph.prototype.listSymbol = function () {
     if (!this.cachedListSymbol || this.cachedListSymbol.height() !==
@@ -287,6 +292,18 @@ TableCellMorph.prototype.listSymbol = function () {
         );
     }
     return this.cachedListSymbol;
+};
+
+TableCellMorph.prototype.adtSymbol = function () {
+    if (!this.cachedADTSymbol || this.cachedADTSymbol.height() !==
+            SyntaxElementMorph.prototype.fontSize) {
+        this.cachedADTSymbol = new SymbolMorph(
+            'cube',
+            SyntaxElementMorph.prototype.fontSize,
+            SpriteMorph.prototype.blockColor.lists.darker(50)
+        );
+    }
+    return this.cachedADTSymbol;
 };
 
 // TableCellMorph instance creation:
@@ -396,6 +413,7 @@ TableCellMorph.prototype.render = function (ctx) {
 };
 
 TableCellMorph.prototype.dataRepresentation = function (dta) {
+    this.userMenu = () => null;
     if (dta instanceof Morph) {
         if (isSnapObject(dta)) {
             return dta.thumbnail(new Point(40, 40), null, true); // no watchers
@@ -427,7 +445,14 @@ TableCellMorph.prototype.dataRepresentation = function (dta) {
         return new SymbolMorph(
             'notes', SyntaxElementMorph.prototype.fontSize
         );
+    } else if (dta instanceof Process) {
+        this.userMenu = () => this.parentThatIsA(IDE_Morph)?.isAppMode ?
+            null : dta.menu();
+        return dta.widget().readout; // does not (yet) support animated symbols
     } else if (dta instanceof List) {
+        if (dta.isADT()) {
+            return this.adtSymbol();
+        }
         return this.listSymbol();
     } else if (dta instanceof Color) {
         return SpriteMorph.prototype.colorSwatch(
@@ -790,7 +815,7 @@ TableMorph.prototype.render = function (ctx) {
 TableMorph.prototype.buildCells = function () {
     // also populate cells with the correct data and
     // arrange the layout of cells all in one pass
-    var cell, r, c,
+    var cell, r, c, dta,
         pos = this.position();
 
     // delete all existing cells
@@ -822,7 +847,8 @@ TableMorph.prototype.buildCells = function () {
                 ).add(pos)
             );
             this.add(cell);
-            if (isSnapObject(cell.getData())) {
+            dta = cell.getData();
+            if (isSnapObject(dta) || (dta instanceof Process)) {
                 this.wantsUpdate = true;
             }
         }
@@ -834,7 +860,7 @@ TableMorph.prototype.buildCells = function () {
 
 TableMorph.prototype.drawData = function (noScrollUpdate) {
     // redraw all cells with their current data or label
-    var cell, cellIdx = 0, r, c;
+    var cell, cellIdx = 0, r, c, dta;
     for (c = 0; c <= this.columns.length; c += 1) {
         for (r = 0; r <= this.rows; r += 1) {
             cell = this.children[cellIdx];
@@ -845,7 +871,8 @@ TableMorph.prototype.drawData = function (noScrollUpdate) {
                     !r ? r : r + this.startRow - 1
                 )
             );
-            if (isSnapObject(cell.getData())) {
+            dta = cell.getData();
+            if (isSnapObject(dta) || (dta instanceof Process)) {
                 this.wantsUpdate = true;
             }
         }
@@ -942,7 +969,7 @@ TableMorph.prototype.rowLabelsWidth = function () {
         0,
         Math.max.apply(
             null,
-            this.table.columnNames().map(
+            this.table.recordNames().map(
                 name => name ? ctx.measureText(name).width : 0
             )
         )
@@ -1132,7 +1159,8 @@ TableMorph.prototype.columnAt = function (relativeX) {
 TableMorph.prototype.userMenu = function () {
     var menu = new MenuMorph(this),
         world = this.world(),
-        ide = detect(world.children, m => m instanceof IDE_Morph);
+        ide = detect(world.children, m => m instanceof IDE_Morph),
+        raw;
 
     if (ide.isAppMode) {return; }
     if (this.parentThatIsA(TableDialogMorph)) {
@@ -1169,6 +1197,31 @@ TableMorph.prototype.userMenu = function () {
                     }
                 }
             );
+        } else if (this.table instanceof Table) {
+            raw = new List().cons(
+                new List(this.table.colNames),
+                this.table.toList()
+            );
+            if (raw.canBeJSON()) {
+                menu.addItem(
+                    'export',
+                    () => {
+                        if (raw.canBeCSV()) {
+                            ide.saveFileAs(
+                                raw.asCSV(),
+                                'text/csv;charset=utf-8', // RFC 4180
+                                localize('data') // name
+                            );
+                        } else {
+                            ide.saveFileAs(
+                                raw.asJSON(true), // guessObjects
+                                'text/json;charset=utf-8',
+                                localize('data') // name
+                            );
+                        }
+                    }
+                );
+            }
         }
         menu.addItem('open in another dialog...', 'openInDialog');
         return menu;
@@ -1177,38 +1230,65 @@ TableMorph.prototype.userMenu = function () {
     if (this.colWidths.length) {
         menu.addItem('reset columns', 'resetColumns');
     }
-    menu.addItem('list view...', 'showListView');
-    if (this.table instanceof List && this.table.canBeJSON()) {
-        menu.addItem(
-            'blockify',
-            () => {
-                this.table.blockify().pickUp(world);
-                world.hand.grabOrigin = {
-                    origin: ide.palette,
-                    position: ide.palette.center()
-                };
-            }
-        );
-        menu.addItem(
-            'export',
-            () => {
-                if (this.table.canBeCSV()) {
-                    ide.saveFileAs(
-                        this.table.asCSV(),
-                        'text/csv;charset=utf-8', // RFC 4180
-                        localize('data') // name
-                    );
-                } else {
-                    ide.saveFileAs(
-                        this.table.asJSON(true), // guessObjects
-                        'text/json;charset=utf-8',
-                        localize('data') // name
-                    );
+    if (this.table instanceof List) {
+        menu.addItem('list view...', 'showListView');
+        if (this.table.canBeJSON()) {
+            menu.addItem(
+                'blockify',
+                () => {
+                    this.table.blockify().pickUp(world);
+                    world.hand.grabOrigin = {
+                        origin: ide.palette,
+                        position: ide.palette.center()
+                    };
                 }
-            }
+            );
+            menu.addItem(
+                'export',
+                () => {
+                    if (this.table.canBeCSV()) {
+                        ide.saveFileAs(
+                            this.table.asCSV(),
+                            'text/csv;charset=utf-8', // RFC 4180
+                            localize('data') // name
+                        );
+                    } else {
+                        ide.saveFileAs(
+                            this.table.asJSON(true), // guessObjects
+                            'text/json;charset=utf-8',
+                            localize('data') // name
+                        );
+                    }
+                }
+            );
+        }
+        menu.addLine();
+    } else if (this.table instanceof Table) {
+        raw = new List().cons(
+            new List(this.table.colNames),
+            this.table.toList()
         );
+        if (raw.canBeJSON()) {
+            menu.addItem(
+                'export',
+                () => {
+                    if (raw.canBeCSV()) {
+                        ide.saveFileAs(
+                            raw.asCSV(),
+                            'text/csv;charset=utf-8', // RFC 4180
+                            localize('data') // name
+                        );
+                    } else {
+                        ide.saveFileAs(
+                            raw.asJSON(true), // guessObjects
+                            'text/json;charset=utf-8',
+                            localize('data') // name
+                        );
+                    }
+                }
+            );
+        }
     }
-    menu.addLine();
     menu.addItem('open in dialog...', 'openInDialog');
     return menu;
 };
